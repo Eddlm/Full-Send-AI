@@ -9,15 +9,18 @@ This script grabs the AI and does two main things:
   - Lift if too close behind someone.
   - Also lift if someone further ahead is way too slow and in the racing line.
 ### Future Updates
-- Human-like personalities, skills, and natural mistakes.
-- Race tactics and more complex raceraft.
+- More ways for AI to adjust to their specific car. Right now Lookaheads are static, which makes AI not follow the line 1:1.
+- Human-like personalities, skills, and natural mistakes, race tactics. More complex raceraft.
 - QOL improvements the community asks for. There is probably some work to be done to improve Endurance or variable weather behavior.
+
 ## Installation / How to use
 - **Though CM**: Drop the ZIP from releases onto the Content Manager from Custom Shader's patch. Go to Downloads (top right menu on CM), click Install.
 - **Manual Installation**: Make a FullSendAI folder on ``(route to Assetto Corsa)\assettocorsa\apps\lua`` and drop the ZIP's contents inside.
 
 Run the game once, this allows the script to install a configuration file for Content Manager. Then, you can navigate to Settings > Custom Shaders Patch > FULL SEND AI and have all the settings there.
-  
+### Automatic updates
+By default, FSA Automatically pulls from the latest Github release through CSP. You can disable this in settings if you don't like it.
+
 ## Compatibility
 - NOT compatible with AI Whisperer, they will fight for control.
 - Future releases may NOT be compatible with "New AI behavior" from CSP.
