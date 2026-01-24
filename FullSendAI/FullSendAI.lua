@@ -98,7 +98,7 @@ function UpdateConfidences()
 			local slipTarget = MySettings:get("SPEED", "SLIP_TARGET", 8) * map(Racers[i].Personality.StrengthVanilla, 0.7, 1, 0.5, 1)
 			if Racers[i].ChasingTarget > -1 then slipTarget = slipTarget * 1.2 end
 			-- Translates aggression to the target brakeinput the AI aims to be at when reaching a corner.
-			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 1.5, 0.5)
+			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 0.5, 0)
 			local slipAngleFront = Car.wheels[1].slipAngle
 			local understeerCounterStart = MySettings:get("SPEED", "UNDERSTEER_TARGET", 8)
 			local undValue = 0
@@ -130,10 +130,10 @@ function UpdateConfidences()
 			-- If we are in the corner already and still braking...
 			if timeToReach < brakeAggroTime and Car.brake > 0.5 then
 				if math.abs(slipAngleFront) > slipTarget / 2 then
-					Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking - changeRate
+					Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking - changeRate * 2
 					for x = progressToId - 1, progressToId - 5 do
 						if x > 0 then
-							Racers[i].TurnConfidence[x].Braking = Racers[i].TurnConfidence[x].Braking - changeRate
+							Racers[i].TurnConfidence[x].Braking = Racers[i].TurnConfidence[x].Braking - changeRate * 2
 						end
 					end
 				else
@@ -145,12 +145,11 @@ function UpdateConfidences()
 			end
 			-- if we are entering a turn and braking sofly or not even braking, we need to brake later.
 			-- Raise earlier sections too in case they are at fault
-			if WithinRange(timeToReach, brakeAggroTime, brakeAggroTime + 1) and Car.brake < 0.5 then
-				Racers[i].TurnConfidence[progressToId + 1].Braking = Racers[i].TurnConfidence[progressToId + 1].Braking + changeRate
-				Racers[i].TurnConfidence[progressToId + 0].Braking = Racers[i].TurnConfidence[progressToId + 0].Braking + changeRate
-				Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + changeRate
+			if WithinRange(timeToReach, brakeAggroTime, brakeAggroTime + 0.5) and Car.brake < 0.5 then
+				Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking + changeRate / 2
+				Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + changeRate / 2
 				if progressToId > 2 then
-					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + changeRate
+					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + changeRate / 2
 				end
 			end
 			-- Apply results to the tyre and brake hint system
