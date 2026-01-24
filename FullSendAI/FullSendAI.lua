@@ -98,8 +98,7 @@ function UpdateConfidences()
 			local slipTarget = MySettings:get("SPEED", "SLIP_TARGET", 8) * map(Racers[i].Personality.StrengthVanilla, 0.7, 1, 0.5, 1)
 			if Racers[i].ChasingTarget > -1 then slipTarget = slipTarget * 1.2 end
 			-- Translates aggression to the target brakeinput the AI aims to be at when reaching a corner.
-			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 0.9, 0.1)
-			if Racers[i].ChasingTarget > -1 then brakeAggroTime = math.clamp(brakeAggroTime - 0.1, 0.1, 0.9) end
+			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 2, 1)
 			local slipAngleFront = Car.wheels[1].slipAngle
 			local understeerCounterStart = MySettings:get("SPEED", "UNDERSTEER_TARGET", 8)
 			local undValue = 0
@@ -120,7 +119,7 @@ function UpdateConfidences()
 					if Car.wheels[1].slipAngle > 0 then undValue = understeerCorrection
 					else undValue = -understeerCorrection end
 				end
-				-- Because we reuse the spline follower target we want to modify it, not set it again. 
+				-- Because we reuse the spline follower target we want to modify it, not set it again.
 				-- Setting it would undo the avoidance done at UpdateIntendedSplineOffsets
 				Racers[i].SplineFollower:modifyTarget(undValue, Racers[i].Spline.TrackWidth)
 			end
@@ -128,13 +127,12 @@ function UpdateConfidences()
 			local timeToReach = upcomingTurnDist / Car.velocity:length()
 			if upcomingTurnDist == 0 then timeToReach = 0 end
 			-- Brake Confidence --
-			-- If we are understeering while braking, we should be braking earlier.
-			-- Reduce earlier sections too in case they are at fault
-			if WithinRange(timeToReach, 0, brakeAggroTime) and Car.brake > 0.5 then
+			-- If we are in the corner already and still braking...
+			if timeToReach < brakeAggroTime and Car.brake > 0.5 then
 				if math.abs(slipAngleFront) > slipTarget / 2 then
 					Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking - changeRate
-					Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking - changeRate
-					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking - changeRate
+					Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId].Braking
+					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId].Braking
 				else
 					local r = changeRate / 2
 					Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking + r
@@ -142,15 +140,13 @@ function UpdateConfidences()
 					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + r
 				end
 			end
-			-- if we are entering a turn and braking sofly, we need to brake later.
+			-- if we are entering a turn and braking sofly or not even braking, we need to brake later.
 			-- Raise earlier sections too in case they are at fault
-			if Car.brake < 0.5 and Car.gas < 0.9 then
-				if WithinRange(timeToReach, brakeAggroTime, 1) then
-					Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking + changeRate * 2
-					Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + changeRate * 2
-					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + changeRate * 2
-				end
-			end			
+			if WithinRange(timeToReach, brakeAggroTime, 1) and Car.brake < 0.1 then
+				Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking + changeRate 
+				Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + changeRate 
+				Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + changeRate
+			end
 			-- Apply results to the tyre and brake hint system
 			if Racers[i].TurnConfidence[progressToId].Cornering then
 				local change = (Racers[i].TurnConfidence[progressToId].Cornering - Racers[i].CurrentConfidence) / 2
@@ -169,7 +165,7 @@ local TenthSec = 0
 local HalfSec = 0
 
 function script.update(dt)
-	if MySettings:get("BASIC", "ENABLED", true) == false then return end
+	if not MySettings:get("BASIC", "ENABLED", true) then return end
 	for i = 1, #Racers do
 		Racers[i].SplineFollower:update(dt)
 		local Car = ac.getCar(Racers[i].index)
@@ -189,12 +185,10 @@ function script.update(dt)
 	HalfSec = HalfSec + dt
 	if HalfSec > 0.5 then
 		for i = 1, #Racers do
-
 			-- Basegame implementation of this is a set distance. I make it a factor of their speed, accounts better for high speed exits.
 			local factor = MySettings:get("MISC", "GAS_LOOKAHEAD_FACTOR", 0.2)
 			physics.setAILookaheadGasBrake(Racers[i].index, Racers[i].Spline.TrackWidth + math.clamp(ac.getCar(Racers[i].index).velocity:length() * factor, 5, 500))
-
-			-- This constantly checks the car's peak lateral grip to adjust lookahead line following. 
+			-- This constantly checks the car's peak lateral grip to adjust lookahead line following.
 			-- Helps high-grip cars not cut corners and low grip cars adhere closer to the racing line.
 			-- Default is 20m for 1G
 			if WithinRange(Racers[i].Gs.Gs.x, -0.5, 0) and math.abs(Racers[i].Gs.Gs.y) > 0.5 then
@@ -206,6 +200,7 @@ function script.update(dt)
 		HalfSec = 0
 	end
 end
+
 -- Figure out their offset from the spline (ideal line) and some context stuff.
 function UpdateRacersInfo()
 	for i = 1, #Racers do
