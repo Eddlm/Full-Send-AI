@@ -98,7 +98,7 @@ function UpdateConfidences()
 			local slipTarget = MySettings:get("SPEED", "SLIP_TARGET", 8) * map(Racers[i].Personality.StrengthVanilla, 0.7, 1, 0.5, 1)
 			if Racers[i].ChasingTarget > -1 then slipTarget = slipTarget * 1.2 end
 			-- Translates aggression to the target brakeinput the AI aims to be at when reaching a corner.
-			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 0.5, 0)
+			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 0.6, 0.1)
 			local slipAngleFront = Car.wheels[1].slipAngle
 			local understeerCounterStart = MySettings:get("SPEED", "UNDERSTEER_TARGET", 8)
 			local undValue = 0
