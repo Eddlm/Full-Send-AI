@@ -149,11 +149,13 @@ function UpdateConfidences()
 				Racers[i].TurnConfidence[progressToId + 1].Braking = Racers[i].TurnConfidence[progressToId + 1].Braking + changeRate
 				Racers[i].TurnConfidence[progressToId + 0].Braking = Racers[i].TurnConfidence[progressToId + 0].Braking + changeRate
 				Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + changeRate
-				Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + changeRate
+				if progressToId > 2 then
+					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + changeRate
+				end
 			end
 			-- Apply results to the tyre and brake hint system
 			if Racers[i].TurnConfidence[progressToId].Cornering then
-				local change = math.clamp((Racers[i].TurnConfidence[progressToId].Cornering - Racers[i].CurrentConfidence), -0.02, 0.02)
+				local change = math.clamp(Racers[i].TurnConfidence[progressToId].Cornering - Racers[i].CurrentConfidence, -0.02, 0.02)
 				Racers[i].CurrentConfidence = Racers[i].CurrentConfidence + change
 				physics.setAITyresHint(Racers[i].index, Racers[i].CurrentConfidence)
 				physics.setAIBrakeHint(Racers[i].index, Racers[i].TurnConfidence[progressToId].Braking)
@@ -200,6 +202,8 @@ function script.update(dt)
 				physics.setAILookaheadBase(Racers[i].index, 20 * mult)
 				Racers[i].ProbablyTypicalGs = Racers[i].ProbablyTypicalGs + (math.abs(Racers[i].Gs.Gs.y) - Racers[i].ProbablyTypicalGs) / 10
 			end
+			physics.setAIAggression(Racers[i].index, 0)
+			physics.setAICaution(Racers[i].index, 0)
 		end
 		HalfSec = 0
 	end
