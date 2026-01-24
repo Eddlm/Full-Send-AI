@@ -98,7 +98,7 @@ function UpdateConfidences()
 			local slipTarget = MySettings:get("SPEED", "SLIP_TARGET", 8) * map(Racers[i].Personality.StrengthVanilla, 0.7, 1, 0.5, 1)
 			if Racers[i].ChasingTarget > -1 then slipTarget = slipTarget * 1.2 end
 			-- Translates aggression to the target brakeinput the AI aims to be at when reaching a corner.
-			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 2, 1)
+			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 1.5, 0.5)
 			local slipAngleFront = Car.wheels[1].slipAngle
 			local understeerCounterStart = MySettings:get("SPEED", "UNDERSTEER_TARGET", 8)
 			local undValue = 0
@@ -131,30 +131,34 @@ function UpdateConfidences()
 			if timeToReach < brakeAggroTime and Car.brake > 0.5 then
 				if math.abs(slipAngleFront) > slipTarget / 2 then
 					Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking - changeRate
-					Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId].Braking
-					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId].Braking
+					for x = progressToId - 1, progressToId - 5 do
+						if x > 0 then
+							Racers[i].TurnConfidence[x].Braking = Racers[i].TurnConfidence[x].Braking - changeRate
+						end
+					end
 				else
 					local r = changeRate / 2
-					Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking + r
-					Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + r
-					Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + r
+					-- Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking + r
+					-- Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + r
+					-- Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + r
 				end
 			end
 			-- if we are entering a turn and braking sofly or not even braking, we need to brake later.
 			-- Raise earlier sections too in case they are at fault
-			if WithinRange(timeToReach, brakeAggroTime, 1) and Car.brake < 0.1 then
-				Racers[i].TurnConfidence[progressToId].Braking = Racers[i].TurnConfidence[progressToId].Braking + changeRate 
-				Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + changeRate 
+			if WithinRange(timeToReach, brakeAggroTime, brakeAggroTime + 1) and Car.brake < 0.5 then
+				Racers[i].TurnConfidence[progressToId + 1].Braking = Racers[i].TurnConfidence[progressToId + 1].Braking + changeRate
+				Racers[i].TurnConfidence[progressToId + 0].Braking = Racers[i].TurnConfidence[progressToId + 0].Braking + changeRate
+				Racers[i].TurnConfidence[progressToId - 1].Braking = Racers[i].TurnConfidence[progressToId - 1].Braking + changeRate
 				Racers[i].TurnConfidence[progressToId - 2].Braking = Racers[i].TurnConfidence[progressToId - 2].Braking + changeRate
 			end
 			-- Apply results to the tyre and brake hint system
 			if Racers[i].TurnConfidence[progressToId].Cornering then
-				local change = (Racers[i].TurnConfidence[progressToId].Cornering - Racers[i].CurrentConfidence) / 2
+				local change = math.clamp((Racers[i].TurnConfidence[progressToId].Cornering - Racers[i].CurrentConfidence), -0.02, 0.02)
 				Racers[i].CurrentConfidence = Racers[i].CurrentConfidence + change
 				physics.setAITyresHint(Racers[i].index, Racers[i].CurrentConfidence)
 				physics.setAIBrakeHint(Racers[i].index, Racers[i].TurnConfidence[progressToId].Braking)
 				if DEBUG_MODE then
-					ac.debug("Car Index nº" .. Racers[i].index, "SPD: x" .. math.round(Racers[i].CurrentConfidence, 1) .. " | BRK: x" .. math.round(Racers[i].TurnConfidence[progressToId].Braking, 2) .. " | UND: " .. math.round(undValue, 1) .. "º | SLP: " .. math.round(math.abs(slipAngleFront), 1) .. "º | LKA x" .. math.round(math.clamp(2 - Racers[i].ProbablyTypicalGs, 0.5, 2), 2))
+					ac.debug("Car Index nº" .. Racers[i].index, "SPD: x" .. math.round(Racers[i].CurrentConfidence, 2) .. " | BRK: x" .. math.round(Racers[i].TurnConfidence[progressToId].Braking, 2) .. " | UND: " .. math.round(undValue, 1) .. "º | SLP: " .. math.round(math.abs(slipAngleFront), 1) .. "º | LKA x" .. math.round(math.clamp(2 - Racers[i].ProbablyTypicalGs, 0.5, 2), 2))
 				end
 			end
 		end
