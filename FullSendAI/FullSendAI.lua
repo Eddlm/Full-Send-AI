@@ -56,7 +56,7 @@ function IndexRacers()
 		}
 		-- Initial confidences from settings, fills the track sections.
 		local CornR = MySettings:get("SPEED", "SPD_CONFIDENCE", 90) / 100
-		local BrakeR = MySettings:get("AGRESSION", "BRK_CONFIDENCE", 80) / 100
+		local BrakeR = MySettings:get("AGRESSION", "BRK_CONFIDENCE", 90) / 100
 		for i = 0, ProgressToMeters / SectionSize do
 			Racers[currentIndex + 1].TurnConfidence[i] = { Cornering = CornR, Braking = BrakeR }
 		end
@@ -192,13 +192,16 @@ function script.update(dt)
 		for i = 1, #Racers do
 			-- Basegame implementation of this is a set distance. I make it a factor of their speed, accounts better for high speed exits.
 			local factor = MySettings:get("MISC", "GAS_LOOKAHEAD_FACTOR", 0.2)
-			physics.setAILookaheadGasBrake(Racers[i].index, Racers[i].Spline.TrackWidth + math.clamp(ac.getCar(Racers[i].index).velocity:length() * factor, 5, 500))
+			local Car = ac.getCar(Racers[i].index)
+			physics.setAILookaheadGasBrake(Racers[i].index, Racers[i].Spline.TrackWidth + math.clamp(Car.velocity:length() * factor, 5, 500))
+			physics.setAILookaheadBase(Racers[i].index, 15)
+			local strmult=math.clamp(map(Car.velocity:length(), 0, 30, 0.5, 0.99), 0.5, 1)
+
+			physics.setAISteerMultiplier(Racers[i].index, strmult)
 			-- This constantly checks the car's peak lateral grip to adjust lookahead line following.
 			-- Helps high-grip cars not cut corners and low grip cars adhere closer to the racing line.
 			-- Default is 20m for 1G
 			if WithinRange(Racers[i].Gs.Gs.x, -0.5, 0) and math.abs(Racers[i].Gs.Gs.y) > 0.5 then
-				local mult = math.clamp(2 - Racers[i].ProbablyTypicalGs, 0.5, 2)
-				physics.setAILookaheadBase(Racers[i].index, 20 * mult)
 				Racers[i].ProbablyTypicalGs = Racers[i].ProbablyTypicalGs + (math.abs(Racers[i].Gs.Gs.y) - Racers[i].ProbablyTypicalGs) / 10
 			end
 			physics.setAIAggression(Racers[i].index, 0)
