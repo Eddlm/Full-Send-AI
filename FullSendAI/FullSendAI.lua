@@ -32,7 +32,7 @@ function IndexRacers()
 			ThrottleLimiter = 1,
 			SmoothThrottleRampUp = 1,
 			Dimensions = {
-				Width = (Car.wheels[0].position - Car.wheels[1].position):length() + 1,
+				Width = (Car.wheels[0].position - Car.wheels[1].position):length() + 0.5,
 				Length = (Car.wheels[0].position - Car.wheels[2].position):length() + 1
 			},
 			-- Dimensions = { Width = Car.aabbSize.x, Length = Car.aabbSize.z }, --The bounding box size the game reports. Inconsistent, or incompetence from me.
@@ -43,7 +43,7 @@ function IndexRacers()
 			SplineFollower = PID:new{
 				value = 0,
 				kP = 2,
-				kD = 3,
+				kD = 2,
 				kI = 0
 			},
 			Spline = {
@@ -82,7 +82,8 @@ function ApplySplineOffset()
 	for i = 1, #Racers do
 		local carIndex = Racers[i].index
 		local val = Racers[i].SplineFollower:getValue()
-		if MySettings:get("COMPAT", "SPLINE_COMPAT", false) then physics.setAISplineOffset(carIndex, math.clamp(val / 10 + 0.05,-1,1), true)
+		if MySettings:get("COMPAT", "SPLINE_COMPAT", false) then
+			physics.setAISplineOffset(carIndex, math.clamp(val / 10 + 0.05, -1, 1), true)
 		else
 			physics.setAISplineAbsoluteOffset(carIndex, val + 0.05, true)
 		end
@@ -102,7 +103,7 @@ function UpdateConfidences()
 			-- Translates aggression to the target brakeinput the AI aims to be at when reaching a corner.
 			local brakeAggroTime = map(Racers[i].Personality.AggressionVanilla, 0, 1, 0.6, 0.1)
 			local slipAngleFront = Car.wheels[1].slipAngle
-			local understeerCounterStart = MySettings:get("SPEED", "UNDERSTEER_TARGET", 6)
+			local understeerCounterStart = MySettings:get("SPEED", "UNDERSTEER_TARGET", 8)
 			local undValue = 0
 			-- Speed confidence (wait for braking to be sorted out first))
 			if Car.brake < 0.5 then
@@ -116,7 +117,7 @@ function UpdateConfidences()
 			end
 			-- Understeer counteractor (only if we aren't urgently avoiding anyone, kP < 4)
 			if math.abs(slipAngleFront) > understeerCounterStart then
-				local understeerCorrection = math.abs(Car.wheels[1].slipAngle) * (MySettings:get("SPEED", "UNDERSTEER_COUNTER", 100) * 0.005)
+				local understeerCorrection = math.abs(Car.wheels[1].slipAngle) * (MySettings:get("SPEED", "UNDERSTEER_COUNTER", 100) * 5e-3)
 				if Racers[i].SplineFollower.kP < 4 then
 					if Car.wheels[1].slipAngle > 0 then undValue = understeerCorrection
 					else undValue = -understeerCorrection end
@@ -166,8 +167,8 @@ function UpdateConfidences()
 					physics.setAIBrakeHint(Racers[i].index, Racers[i].TurnConfidence[progressToId].Braking)
 				end
 				if DEBUG_MODE then
-					-- ac.debug("Car Index nº" .. Racers[i].index, "SPD: x" .. math.round(Racers[i].CurrentConfidence, 2) .. " | BRK: x" .. math.round(Racers[i].TurnConfidence[progressToId].Braking, 2) .. " | UND: " .. math.round(undValue, 1) .. "º | SLP: " .. math.round(math.abs(slipAngleFront), 1) .. "º | LKA x" .. math.round(math.clamp(2 - Racers[i].ProbablyTypicalGs, 0.5, 2), 2))
-					ac.debug("Car in Pos nº" .. Car.racePosition, "OFF: x" .. math.round(Racers[i].SplineFollower:getValue(), 2))
+					ac.debug("Car Index nº" .. Racers[i].index, "SPD: x" .. math.round(Racers[i].CurrentConfidence, 2) .. " | BRK: x" .. math.round(Racers[i].TurnConfidence[progressToId].Braking, 2) .. " | UND: " .. math.round(undValue, 1) .. "º | SLP: " .. math.round(math.abs(slipAngleFront), 1) .. "º | LKA x" .. math.round(math.clamp(2 - Racers[i].ProbablyTypicalGs, 0.5, 2), 2))
+					--ac.debug("Car in Pos nº" .. Car.racePosition, "OFF: x" .. math.round(Racers[i].SplineFollower:getValue(), 2))
 				end
 			end
 		end
@@ -178,14 +179,13 @@ local TenthSec = 0
 local HalfSec = 0
 
 function script.update(dt)
-	-- PlayerAITests(dt)
 	if not MySettings:get("BASIC", "ENABLED", true) then return end
 	for i = 1, #Racers do
 		Racers[i].SplineFollower:update(dt)
 		local Car = ac.getCar(Racers[i].index)
 		Racers[i].Gs:Update(Car.velocity, Car.look, Car.up, dt)
 		if Racers[i].SmoothThrottleRampUp < 1 then
-			Racers[i].SmoothThrottleRampUp = Racers[i].SmoothThrottleRampUp + dt / MySettings:get("MISC", "FIX_BLIPPING", 1)
+			Racers[i].SmoothThrottleRampUp = Racers[i].SmoothThrottleRampUp + dt / MySettings:get("MISC", "FIX_BLIPPING", 0)
 		end
 	end
 	TenthSec = TenthSec + dt
@@ -320,31 +320,28 @@ function UpdateIntendedSplineOffsets()
 						local assumeCarVelocity = targetCar.velocity
 						if targetCar.velocity:length() < thisCar.velocity:length() / 2 then assumeCarVelocity = thisCar.velocity end
 						local angleTreshold = math.round(math.deg(angleBetweenVectorsWithMagnitudes(thisCar.velocity, assumeCarVelocity)), 1)
-						local distBetweenCars = (targetCar.position - thisCar.position):length() - ((Racers[i].Dimensions.Length + Racers[z].Dimensions.Length)/2)
-						local latDiffBetweenCars = (Racers[z].Spline.OffsetFromSplineCenter) - (Racers[i].Spline.OffsetFromSplineCenter)
+						local distBetweenCars = (targetCar.position - thisCar.position):length() - (Racers[i].Dimensions.Length + Racers[z].Dimensions.Length) / 2
+						local latDiffBetweenCars = Racers[z].Spline.OffsetFromSplineCenter - Racers[i].Spline.OffsetFromSplineCenter
 						local spdDifference = thisCar.velocity:length() - targetCar.velocity:length()
 						local sToReach = math.clamp(distBetweenCars / spdDifference, 0, 999)
 						if spdDifference <= 0 then sToReach = math.huge end
 						local almostSameLane = math.abs(latDiffBetweenCars) < Racers[i].Dimensions.Width + Racers[i].Personality.SpaceLeft
 						local atSameLane = math.abs(latDiffBetweenCars) < Racers[i].Dimensions.Width
-						local atSameLevel = math.abs(distBehindTarget) < Racers[i].Dimensions.Length + 1
+						local atSameLevel = math.abs(distBehindTarget) < Racers[i].Dimensions.Length
 						local almostSameLevel = math.abs(distBehindTarget) < Racers[i].Dimensions.Length + 1 + MySettings:get("AGRESSION", "MIN_DISTANCE", 2)
 						local imBehind = distBehindTarget > 0
 						-- Too close, lift
 						if imBehind and almostSameLevel and atSameLane then Racers[i].ThrottleLimiter = 0 end
 						-- Closing in too fast, lift
-						if sToReach < 5 and imBehind then
+						if sToReach < 5 and imBehind and spdDifference > -1 then
 							if atSameLane then
 								Racers[i].ThrottleLimiter = math.clamp(map(sToReach, 3, 1, 1, 0.05), 0.05, 1)
 							elseif almostSameLane then
-								Racers[i].ThrottleLimiter = math.clamp(map(spdDifference, 15, 30, 1, 0.01), 0.01, 1)
+								Racers[i].ThrottleLimiter = math.clamp(map(spdDifference, 0, 15, 1, 0.01), 0.01, 1)
 							end
 						end
 						if almostSameLane and (imBehind or atSameLevel) then
-							local closeEnoughToPass = sToReach < map(math.abs(angleTreshold), 0, 30, 2, 0)
-							if ac.getTrackUpcomingTurn(Racers[i].index).x / thisCar.velocity:length() < 3 then
-								closeEnoughToPass = sToReach < map(math.abs(angleTreshold), 0, 30, 4, 0)
-							end
+							local closeEnoughToPass = sToReach < map(math.abs(angleTreshold), 0, 30, 5, 0)
 							if closeEnoughToPass or atSameLevel then
 								local targetsLane = Racers[z].Spline.OffsetFromSplineCenter
 								local offsetSize = Racers[i].Dimensions.Width + Racers[i].Personality.SpaceLeft
@@ -362,17 +359,17 @@ function UpdateIntendedSplineOffsets()
 								end
 								newSplineOffset = newLane
 								rivalWeWereAlreadyAvoiding = z
-								-- only aggresively avoid if you are the one behind
-								if distBehindTarget >= 0 then Racers[i].SplineFollower.kP = 4 end
+								
+								 Racers[i].SplineFollower.kP = 4 
 							end
 						end
 					end
 				end
 			end
 		end
-		Racers[i].SplineFollower:setTarget(newSplineOffset, Racers[i].Spline.TrackWidth * 2)
+		Racers[i].SplineFollower:setTarget(newSplineOffset, Racers[i].Spline.TrackWidth)
 		-- If the race is starting, keep them on their starting lane for the first few seconds.
-		if thisCar.lapCount < 1 and thisCar.lapTimeMs < 2e3 + thisCar.racePosition * 500 then
+		if thisCar.lapCount < 1 and thisCar.lapTimeMs < 500 + thisCar.racePosition * 250 then
 			Racers[i].SplineFollower:setTarget(Racers[i].Spline.OffsetFromSplineCenter)
 		end
 		if MySettings:get("MISC", "FIX_BLIPPING", 1) > 0 then
